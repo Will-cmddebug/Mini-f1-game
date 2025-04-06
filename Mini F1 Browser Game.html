@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>F1 Glad Racer</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(to bottom, #000000, #111111);
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      text-align: center;
+    }
+
+    #game {
+      position: relative;
+      width: 400px;
+      height: 600px;
+      margin: 40px auto;
+      background: radial-gradient(#222, #000);
+      border: 5px solid #ff0066;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .car {
+      position: absolute;
+      width: 50px;
+      height: 100px;
+      bottom: 20px;
+      border-radius: 10px;
+    }
+
+    .car1 { background: #ff0066; }
+    .car2 { background: #00ffff; }
+    .car3 { background: #ffcc00; }
+    .car4 { background: #ff00ff; }
+    .car5 { background: #ffffff; }
+
+    .obstacle {
+      position: absolute;
+      width: 50px;
+      height: 100px;
+      background: #666;
+      top: -100px;
+      border-radius: 10px;
+    }
+
+    .coin {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: gold;
+      border-radius: 50%;
+      top: -30px;
+    }
+
+    .road-line {
+      position: absolute;
+      width: 10px;
+      height: 50px;
+      background: white;
+      left: 195px;
+    }
+
+    #score, #highScore {
+      font-size: 18px;
+      position: absolute;
+      top: 10px;
+    }
+
+    #score { left: 10px; }
+    #highScore { right: 10px; }
+
+    #menu {
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px;
+      background-color: #ff0066;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <h1>Kyros F1 Game</h1>
+    <label>Enter Your Name: <input id="playerName" /></label>
+    <p>Select Your Car:</p>
+    <button onclick="selectCar('car1')">❤️</button>
+    <button onclick="selectCar('car2')">💙</button>
+    <button onclick="selectCar('car3')">💛</button>
+    <button onclick="selectCar('car4')">💜</button>
+    <button onclick="selectCar('car5')">🤍</button>
+    <br>
+    <button onclick="startGame()">Start Game</button>
+    <button onclick="showLeaderboard()">Leaderboard</button>
+  </div>
+
+  <div id="game" style="display:none;">
+    <div id="score">Score: 0</div>
+    <div id="highScore">High Score: 0</div>
+  </div>
+
+  <div id="leaderboard" style="display:none;">
+    <h2>Leaderboard</h2>
+    <ul id="scores"></ul>
+    <button onclick="hideLeaderboard()">Back</button>
+  </div>
+
+  <script>
+    const game = document.getElementById("game");
+    const menu = document.getElementById("menu");
+    const scoreEl = document.getElementById("score");
+    const highScoreEl = document.getElementById("highScore");
+    const leaderboard = document.getElementById("leaderboard");
+    const scoresList = document.getElementById("scores");
+
+    let playerName = "";
+    let selectedCarClass = "car1";
+    let car, score = 0, highScore = 0, speed = 4, playing = false;
+    let carX = 175;
+
+    function selectCar(c) {
+      selectedCarClass = c;
+    }
+
+    function updateScores() {
+      scoreEl.textContent = "Score: " + score;
+      highScoreEl.textContent = "High Score: " + highScore;
+    }
+
+    function startGame() {
+      playerName = document.getElementById("playerName").value || "Player";
+      menu.style.display = "none";
+      leaderboard.style.display = "none";
+
+      // Reset game area but keep score elements
+      game.innerHTML = '';
+      game.appendChild(scoreEl);
+      game.appendChild(highScoreEl);
+
+      const newCar = document.createElement("div");
+      newCar.classList.add("car", selectedCarClass);
+      newCar.id = "car";
+      game.appendChild(newCar);
+      car = newCar;
+      car.style.left = "175px";
+      carX = 175;
+
+      score = 0;
+      speed = 4;
+      playing = true;
+
+      updateScores();
+      createRoadLines();
+      game.style.display = "block";
+      gameLoop();
+    }
+
+    function showLeaderboard() {
+      leaderboard.style.display = "block";
+      menu.style.display = "none";
+      scoresList.innerHTML = JSON.parse(localStorage.getItem("f1scores") || "[]")
+        .map(s => `<li>${s.name}: ${s.score}</li>`).join("");
+    }
+
+    function hideLeaderboard() {
+      leaderboard.style.display = "none";
+      menu.style.display = "block";
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (!playing) return;
+      if (e.key === "ArrowLeft" && carX > 0) carX -= 25;
+      if (e.key === "ArrowRight" && carX < 350) carX += 25;
+      car.style.left = carX + "px";
+    });
+
+    function createObstacle() {
+      const obs = document.createElement("div");
+      obs.classList.add("obstacle");
+      obs.style.left = Math.floor(Math.random() * 8) * 50 + "px";
+      game.appendChild(obs);
+
+      let obsY = -100;
+      function move() {
+        obsY += speed;
+        obs.style.top = obsY + "px";
+        if (isCollision(obs)) return gameOver();
+        if (obsY < 600) requestAnimationFrame(move);
+        else {
+          game.removeChild(obs);
+          score++;
+          updateScores();
+          if (score % 10 === 0) speed += 0.5;
+          if (score > highScore) {
+            highScore = score;
+            updateScores();
+          }
+        }
+      }
+      move();
+    }
+
+    function createCoin() {
+      const coin = document.createElement("div");
+      coin.classList.add("coin");
+      coin.style.left = Math.floor(Math.random() * 8) * 50 + "px";
+      game.appendChild(coin);
+
+      let coinY = -30;
+      function moveCoin() {
+        coinY += speed;
+        coin.style.top = coinY + "px";
+        if (isCollision(coin)) {
+          game.removeChild(coin);
+          score += 5;
+          updateScores();
+          return;
+        }
+        if (coinY < 600) requestAnimationFrame(moveCoin);
+        else game.removeChild(coin);
+      }
+      moveCoin();
+    }
+
+    function isCollision(el) {
+      const rect1 = car.getBoundingClientRect();
+      const rect2 = el.getBoundingClientRect();
+      return (
+        rect1.top < rect2.bottom &&
+        rect1.bottom > rect2.top &&
+        rect1.left < rect2.right &&
+        rect1.right > rect2.left
+      );
+    }
+
+    function createRoadLines() {
+      for (let i = 0; i < 10; i++) {
+        const line = document.createElement("div");
+        line.classList.add("road-line");
+        line.style.top = i * 60 + "px";
+        game.appendChild(line);
+      }
+    }
+
+    function animateRoadLines() {
+      const lines = document.querySelectorAll(".road-line");
+      lines.forEach((line) => {
+        let top = parseFloat(line.style.top);
+        top += speed;
+        if (top > 600) top = -60;
+        line.style.top = top + "px";
+      });
+    }
+
+    function gameLoop() {
+      if (!playing) return;
+      animateRoadLines();
+
+      const obsCount = score >= 101 ? 4 : score >= 81 ? 3 : score >= 51 ? 2 : 1;
+      for (let i = 0; i < obsCount; i++) setTimeout(createObstacle, i * 200);
+      if (Math.random() < 0.3) createCoin();
+
+      setTimeout(gameLoop, 1000);
+    }
+
+    function gameOver() {
+      playing = false;
+      alert("💥 CRASHED! Final Score: " + score);
+      const oldScores = JSON.parse(localStorage.getItem("f1scores") || "[]");
+      oldScores.push({ name: playerName, score });
+      localStorage.setItem("f1scores", JSON.stringify(oldScores.sort((a,b)=>b.score-a.score).slice(0,10)));
+      location.reload();
+    }
+  </script>
+</body>
+</html>
